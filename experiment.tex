@@ -1,0 +1,115 @@
+\section{\label{sec:exp}Experiment}
+
+\subsection{Dataset}
+We use the 58-language-to-English TED corpus for experiments. Following settings of prior work on multilingual NMT~\citep{rapid_adapt_nmt,ted_pretrain_emb}, we use three low-resource language datasets Azerbaijani
+(aze), Belarusian (bel), Galician (glg) to English; and a slightly higher resource Slovak (slk) to English dataset. We pair each low resource language with a related high resource language: Turkish (tur), Russian (rus), Portuguese (por), and Czech (ces) respectively. Table \ref{tab:data} shows the details of the dataset.
+
+\begin{table}[h]
+    \centering
+    \begin{tabular}{c|ccc|cc}
+    LRL & Train & Dev & Test & HRL & Train \\
+    \midrule
+    aze & 5.94k & 671 & 903 & tur & 182k\\
+    bel & 4.51k & 248 & 664 & rus & 208k\\
+    glg & 10.0k & 682 & 1007 & por & 185k \\
+    slk & 61.5k & 2271 & 2445 & ces & 103k\\
+    \end{tabular}
+    \caption{Number of sentences in datasets.}
+    \label{tab:data}
+\end{table}
+
+\subsection{Training Details}
+For all experiments, we build upon a standard seq2seq NMT model. Below are the training details:
+\begin{itemize}
+    \item We use 1 layer long-short-term-memory (LSTM) network with 512 hidden dimension for both the encoder and the decoder. 
+    \item The word embedding dimension is kept as 128, and all other default layer dimension is 512. 
+    \item We use the dropout rate of 0.3 for the word embedding and the output tensor before the decoder softmax layer.
+    \item The batch size is set to be 1500 words. We evaluate by development set BLEU score for every 2500 training batches. 
+    \item For training, we use Adam optimizer with learning rate of 0.001. We use learning rate decay of 0.8, and stop training if the model performance on development set doesn't improve for 5 evaluation steps.
+\end{itemize}
+
+\subsection{Baselines}
+Parallel corpus from a related high resource language can be utilized through direct training data concatenation, balanced sampling, or pretraining on concatenated data and fine tuning on the low resource langauge. \cite{rapid_adapt} shows that the simple method of data concatenation is better than balanced sampling, and is mostly comparable to the results after fine tuning. Thus we focus on multilingual training through data concatenation because 1) it is a competitive yet simple and practical method; 2) our main focus, an efficient and transferable representation of lexical units of multilingual data, is orthogonal to multilingual training strategies.
+
+We have three settings for the baseline: 1) word: we use words as lexical units, and set a fixed vocabulary size of 40000 for the concatenated bilingual data; 2) bpe-joint: we use Byte Pair Encoding (bpe) of 8000 merge operations on the concatenated bilingual data; 3) bpe-sep: we use bpe seperately on both languages, each with 8000 merge operations, which effectively creates a vocabulary of size 16000.
+
+\subsection{Results}
+%We test the two proposed methods of multilingual lexical representations: 1) word+char\_ngram: we use words as lexical units with a fixed vocabulary size of 40000, then add the word embedding to its bag-of-ngram character embedding; 2) share+char\_ngram: we use a shared embedding space of size 10000, and add the shared embedding to the bag-of-ngram character embedding. 
+
+Table \ref{tab:results} shows the results of the baselines and our proposed methods. Among the three baselines, bpe-sep achieves the best performance on all four datasets.   
+
+word + char has up to 2 BLEU improvement over the best baseline for the three low resource datasets, and loses only slightly to bpe-sep for the slightly higher resource slk dataset. share + char achieves the best BLEU score on all four datasets: it not only outperforms the already strong word + char method, but also improves over the best baseline by 0.5 BLEU on the slightly higher resourced slk dataset.
+
+\begin{table}[h]
+    \centering
+    \begin{tabular}{cc|cccc}
+    Lex Unit & Encoding & aze & bel & glg & slk \\
+    \midrule
+    Word & Lookup & & & & \\
+    BPE-joint & Lookup & & & & \\
+    BPE-sep & Lookup & 11.01 & 16.34 & 28.27 & 28.33 \\
+    \midrule
+    Word & Lookup + Char & 11.88 & 18.68 & 30.04 & 27.98 \\
+    Word & Decoupled & 12.11 & 18.7 & 30.86 & 28.88 \\
+    \end{tabular}
+    \caption{BLEU scores on four language pairs.}
+    \label{tab:results}
+\end{table}
+
+\subsection{Ablation Studies}
+remove language specific matrix, remove word embedding, remove char embedding
+\begin{table}[h]
+    \centering
+    \begin{tabular}{l|cccc}
+    Model & aze & bel & glg & slk \\
+    \midrule
+    Decoupled & 12.11 & 18.7 & 30.86 & 28.88 \\
+    $-$ Latent Word Embedding &  &  &  &  \\
+    $-$ Character Embedding &  &  &  &  \\
+    $-$ Language Specific Transform &  &  &  &  \\
+    \end{tabular}
+    \caption{BLEU scores after removing each component in Decoupled encoding.}
+    \label{tab:ablate}
+\end{table}
+
+
+\subsection{Lexical Boundary/Limitation of BPE}
+Show that
+\begin{itemize}
+    \item our design choice is better than BPE in any form:subword + charngram, word+bpe-ngram
+    \item our method is better than character NMT in terms of performance and computation time
+\end{itemize}
+
+\begin{table}[h]
+    \centering
+    \begin{tabular}{ll|cccc}
+   Lex Unit & Encoding & aze & bel & glg & slk \\
+    \midrule
+    Word & Lookup+Char & 12.11 & 18.7 & 30.86 & 28.88 \\
+    Word & Decoupled & 12.11 & 18.7 & 30.86 & 28.88 \\
+    \midrule
+    BPE-sep & Lookup + Char &  &  &  &  \\
+    BPE-sep & Decoupled &  &  &  &  \\
+    Word & Decoupled-BPE &  &  &  &  \\
+    Character & CNN &  &  &  &  \\
+    \end{tabular}
+    \caption{BLEU scores on four language pairs.}
+    \label{tab:lex_bound}
+\end{table}
+
+\subsection{Model Capacity}
+Show that
+\begin{itemize}
+    \item bpe performance decrease with higher number of parameters
+    \item while our method is able to utilize the high resource data through increased model size. 
+\end{itemize}
+
+
+\subsection{Adapt from Combined Data}
+Better at adapt from a big model trained on all the training data.
+
+\subsection{Character Embeddings}
+varies cnn, ngram, bilstm embedding 
+
+\subsection{Lexical Sharing}
+visualize attention over shared embedding
