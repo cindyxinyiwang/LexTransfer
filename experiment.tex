@@ -31,7 +31,7 @@ For all experiments, we build upon a standard seq2seq NMT model. Below are the t
 \subsection{Baselines}
 Parallel corpus from a related high resource language can be utilized through direct training data concatenation, balanced sampling, or pretraining on concatenated data and fine tuning on the low resource langauge. \cite{rapid_adapt} shows that the simple method of data concatenation is better than balanced sampling, and is mostly comparable to the results after fine tuning. Thus we focus on multilingual training through data concatenation because 1) it is a competitive yet simple and practical method; 2) our main focus, an efficient and transferable representation of lexical units of multilingual data, is orthogonal to multilingual training strategies.
 
-We have three settings for the baseline: 1) word: we use words as lexical units, and set a fixed vocabulary size of 40000 for the concatenated bilingual data; 2) bpe-joint: we use Byte Pair Encoding (bpe) of 8000 merge operations on the concatenated bilingual data; 3) bpe-sep: we use bpe seperately on both languages, each with 8000 merge operations, which effectively creates a vocabulary of size 16000.
+We have three settings for the baseline: 1) word: we use words as lexical units, and set a fixed vocabulary size of 16000, 32000, and 64000 for the concatenated bilingual data; 2) bpe-joint: we use BPE of 8000, 16000, and 32000 merge operations on the concatenated bilingual data; 3) bpe-sep: we use bpe seperately on both languages, each with 8000, 16000, and 32000 merge operations, which effectively creates a vocabulary of size 16000, 32000, and 64000. For each baseline, we report the best result over the three vocabulary size.
 
 \subsection{Results}
 %We test the two proposed methods of multilingual lexical representations: 1) word+char\_ngram: we use words as lexical units with a fixed vocabulary size of 40000, then add the word embedding to its bag-of-ngram character embedding; 2) share+char\_ngram: we use a shared embedding space of size 10000, and add the shared embedding to the bag-of-ngram character embedding. 
@@ -45,12 +45,13 @@ word + char has up to 2 BLEU improvement over the best baseline for the three lo
     \begin{tabular}{cc|cccc}
     Lex Unit & Encoding & aze & bel & glg & slk \\
     \midrule
-    Word & Lookup & & & & \\
-    BPE-joint & Lookup & & & & \\
-    BPE-sep & Lookup & 11.01 & 16.34 & 28.27 & 28.33 \\
+    Word & Lookup & 6.16 & 8.67 & 17.52 & 21.83 \\
+    BPE-joint & Lookup & 7.90 & 9.33 & 18.00 & 23.33 \\
+    BPE-sep & Lookup & 11.25 & 16.53 & 28.16 & 28.54 \\
     \midrule
-    Word & Lookup + Char & 11.88 & 18.68 & 30.04 & 27.98 \\
-    Word & Decoupled & 12.11 & 18.7 & 30.86 & 28.88 \\
+    Word & UniEnc~\citep{universal_nmt} & 4.72 & 8.17 & 14.35  & 12.58 \\
+    Word & Lookup + Char & 11.77 & 17.66 & 30.17 & 28.91 \\
+    Word & Decoupled & 12.73 & 19.28 & 30.43 & 28.94 \\
     \end{tabular}
     \caption{BLEU scores on four language pairs.}
     \label{tab:results}
@@ -63,13 +64,35 @@ remove language specific matrix, remove word embedding, remove char embedding
     \begin{tabular}{l|cccc}
     Model & aze & bel & glg & slk \\
     \midrule
-    Decoupled & 12.11 & 18.7 & 30.86 & 28.88 \\
-    $-$ Latent Word Embedding &  &  &  &  \\
-    $-$ Character Embedding &  &  &  &  \\
-    $-$ Language Specific Transform &  &  &  &  \\
+    Decoupled & 12.25 & 19.08 & 30.43 & 28.60 \\
+    $-$ Latent Word Embedding & 10.62 & 16.03 & 29.01 & 28.31 \\
+    $-$ Character Embedding & 4.71 & 7.22 & 14.52 & 9.13 \\
+    $-$ Language Specific Transform & 12.73 & 18.62 & 30.05 & 28.77 \\
     \end{tabular}
     \caption{BLEU scores after removing each component in Decoupled encoding.}
     \label{tab:ablate}
+\end{table}
+
+\subsection{Effect of Vocabulary Size and Language Specific Transform}
+Maybe language that are less similar (ngram overlap) and less morphology benefit from language specific transform matrix 
+
+Language with richer morphology needs less vocab
+\begin{table}[h]
+    \centering
+    \begin{tabular}{cc|cccc}
+    \#ngram & LanTrans & aze & bel & glg & slk \\
+    \midrule
+    \multirow{2}{*}{8000} & Yes & 11.81 & 18.26 & 30.13 & 28.49 \\
+         & No & 12.39 & 16.75 & 29.45 & 28.82 \\
+    \midrule
+    \multirow{2}{*}{16000} & Yes & 11.96 & 19.28 & 30.05 & 28.60 \\
+         & No & 12.58 & 18.37 & 30.27 & 28.94 \\
+    \midrule
+    \multirow{2}{*}{32000} & Yes & 12.25 & 19.08 & 30.43 & 28.55 \\
+         & No & 12.73 & 18.62 & 30.05 & 28.77 \\
+    \end{tabular}
+    \caption{BLEU scores on four language pairs.}
+    \label{tab:results}
 \end{table}
 
 
@@ -85,31 +108,44 @@ Show that
     \begin{tabular}{ll|cccc}
    Lex Unit & Encoding & aze & bel & glg & slk \\
     \midrule
-    Word & Lookup+Char & 12.11 & 18.7 & 30.86 & 28.88 \\
-    Word & Decoupled & 12.11 & 18.7 & 30.86 & 28.88 \\
+    Word & Lookup + Char & 11.77 & 17.66 & 30.17 & 28.91 \\
+    BPE-sep & Lookup + Char & 11.60 & 15.83 & 28.76 & 28.09 \\
     \midrule
-    BPE-sep & Lookup + Char &  &  &  &  \\
-    BPE-sep & Decoupled &  &  &  &  \\
-    Word & Decoupled-BPE &  &  &  &  \\
-    Character & CNN &  &  &  &  \\
+    Word & Decoupled & 12.25 & 19.08 & 30.43 & 28.55 \\
+    BPE-sep & Decoupled & 12.59 & 16.89 &  &  28.47 \\
+    Word & Decoupled-BPE & 12.14 & 17.68 & 31.34 & 28.83 \\
     \end{tabular}
     \caption{BLEU scores on four language pairs.}
     \label{tab:lex_bound}
 \end{table}
 
-\subsection{Model Capacity}
-Show that
-\begin{itemize}
-    \item bpe performance decrease with higher number of parameters
-    \item while our method is able to utilize the high resource data through increased model size. 
-\end{itemize}
+
+%\subsection{Model Capacity}
+%Show that
+%\begin{itemize}
+%    \item bpe performance decrease with higher number of parameters
+%    \item while our method is able to utilize the high resource data through increased model size. 
+%\end{itemize}
 
 
-\subsection{Adapt from Combined Data}
+\subsection{Train on Combined Data}
 Better at adapt from a big model trained on all the training data.
+\begin{table}[h]
+    \centering
+    \begin{tabular}{ll|cc|cc}
+   Lex Unit & Encoding & \multicolumn{2}{c|}{aze} & \multicolumn{2}{c}{bel}  \\
+    \midrule
+    &  & bi & all & bi & all \\
+    \midrule
+    BPE-sep & Lookup & 11.25 & 8.10 & 16.53 & 15.16 \\
+    Word & Decoupled & 12.25 & 12.09 & 19.08 & 19.96 \\
+    \end{tabular}
+    \caption{BLEU scores on four language pairs.}
+    \label{tab:lex_bound}
+\end{table}
 
-\subsection{Character Embeddings}
-varies cnn, ngram, bilstm embedding 
+%\subsection{Character Embeddings}
+%varies cnn, ngram, bilstm embedding 
 
 \subsection{Lexical Sharing}
 visualize attention over shared embedding
